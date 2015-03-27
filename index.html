@@ -1,0 +1,184 @@
+<html ng-app="app">
+	<head>
+	<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+	<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+	<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css">
+	<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Lato' type='text/css'>
+	<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Lobster Two' type='text/css'>
+  <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.1/angular.js"></script>
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+<style>
+	
+body {
+	font-family: 'Lato', sans-serif;
+}
+h1 {
+	font-family: 'Lobster Two';
+	font-size: 66px;
+}
+.page-wrap {
+  margin: 30px;
+}
+tr:hover {
+  background: #eeeeee
+}
+a.tool, a {
+	color: #666;
+}
+tr a {
+	padding-left: 10px;
+}
+tr:hover a.tool {
+  color: #ce4844;
+}
+a.active {
+	color: #1b809e;
+}
+a.inactive {
+	color: #ddd;
+}
+  
+td, th {
+	padding: 10px;
+}
+table {
+	border: 1px solid #ddd;
+}
+  
+.addok {
+  margin-top: 20px;
+}
+.addok strong {
+  font-family: 'Lobster Two';
+  font-size: 20pt;
+}
+</style>
+<script>
+var app = angular.module('app', []);
+
+app.directive("contenteditable", function() {
+  return {
+    require: "ngModel",
+    link: function(scope, element, attrs, ngModel) {
+      function read() {
+        ngModel.$setViewValue(element.html());
+      }
+      ngModel.$render = function() {
+        element.html(ngModel.$viewValue || "");
+      };
+      element.bind("blur keyup change", function() {
+        scope.$apply(read);
+      });
+    }
+  };
+});
+
+app.controller('Controller', function ($scope, $http, $window) {
+  $scope.links = [];
+  $http.get('/links/').success(function(data) {
+  	$scope.links = data;
+  });
+  
+  $scope.recentLink = "";
+  $scope.newLink = {slug: "", target: ""}
+  
+  $scope.AddLink = function() {
+  	$http.post('/links/', $scope.newLink).success(function(data) {
+			$scope.links.push(data);
+			$scope.newLink.slug = "";
+			$scope.newLink.target = "";
+			$scope.recentLink = "" + $window.location + data.slug;
+		});
+  }
+  
+  $scope.Delete = function(link) {
+  	$http.delete('/links/' + link.key).success(function(data) {
+      var idx = $scope.links.indexOf(link);
+  	  if (idx != -1) {
+        $scope.links.splice(idx, 1);
+      }
+    });
+  };
+  
+  $scope.Change = function(link) {
+  	link._changed = true;
+  };
+  
+  $scope.Save = function(link) {
+    $http.put("/links/" + link.key, link).success(function(data) {
+      link._changed = false;
+    });
+  };
+});
+</script>
+
+</head>
+<body>
+	
+<div ng-controller="Controller" class="page-wrap">
+
+<div class="row">
+	<div class="col-md-5">
+		<img style="height: 350px" src="https://farm3.staticflickr.com/2616/3707714514_b1563a7b76_z_d.jpg">
+	</div>
+
+	<div class="col-md-7">
+		<div style="padding-left: 10px; padding-top: 60px;">
+			<form ng-submit="AddLink()">
+				<h1>Create a short link</h1>
+		    <div class="input-group input-group-lg">
+		      <input class="form-control" name=target ng-model='newLink.target' placeholder=url>
+		      <span class="input-group-btn">
+		        <button  class="btn btn-default"><i class="fa fa-plus"></i> add</button>
+		      </span>
+		    </div>	  
+				<div class="form-group" ng-show="newLink.target" style="padding-top:20px" >
+				  <label for="disabledSelect">Custom Name (optional)</label>
+				  <input class="form-control" name=slug ng-model='newLink.slug' placeholder="custom name">
+				</div>
+				<div ng-show="recentLink" class="alert alert-success addok" role="alert">
+				  <button type="button" class="close" aria-label="Close"
+				  	ng-click="recentLink = ''"><span aria-hidden="true">&times;</span></button>
+				  <strong>Created</strong>
+				  <p>Here's your link:</p>
+				  <input class="form-control" disabled ng-model="recentLink">
+				</div>
+				
+	    </form>
+	  </div>
+	</div>
+</div>
+
+<h1>Short Links</h1>
+<table class="table">
+	<thead>
+		<tr>
+			<th></th>
+			<th class="slug">Link</th>
+			<th class="target">Target</th>
+			<th></th>
+	  </tr>
+  </thead>
+  <tbody>
+    <tr ng-repeat="link in links" ng-class="{info: link._changed}">
+    	<td>
+    		<a class="tool" href="/{{ link.slug }}"><i class="fa fa-external-link"></i></a>
+    		<a ng-class="{active: link._changed, inactive: !link._changed}" ng-click="Save(link)"><i class="fa fa-save"></button>
+    	</td>
+			<td  class="slug" contenteditable=true 
+					ng-change="link._changed = true" ng-model="link.slug">
+			</td>
+			<td class="target" 
+					contenteditable=true
+					ng-change="link._changed = true" ng-model="link.target">
+			</td>
+			<td>
+				<a class="tool" ng-click="Delete(link)"><i class="fa fa-trash"></i></a>
+  		</td>
+		</tr>	
+	</tbody>
+</table>
+</div>
+
+</body>
+</html>
